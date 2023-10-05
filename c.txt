@@ -1,0 +1,633 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Feb 26 11:10:13 2021
+
+@author: ADMIN
+"""
+
+
+import cv2
+import sys
+import time
+import os
+import face_recognition
+import logging as log
+import datetime as dt
+from time import sleep
+import speech_recognition as sr
+import pyttsx3 as p
+#from recommendations import *
+#from words import *
+import pyaudio
+import win32com.client
+import win32api
+import sys
+import os
+import random
+import keyboard
+
+bjp=0
+cng=0
+tdp=0
+jjp=0
+
+a=0
+
+def imagecapture():
+    cascPath = "haarcascade_frontalface_default.xml"
+    faceCascade = cv2.CascadeClassifier(cascPath)
+    log.basicConfig(filename='webcam.log',level=log.INFO)
+    
+    video_capture = cv2.VideoCapture(0)
+    anterior = 0
+    
+    while True:
+        if not video_capture.isOpened():
+            print('Unable to load camera.')
+            sleep(5)
+            pass
+    
+        # Capture frame-by-frame
+        ret, frame = video_capture.read()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    
+    
+        faces = faceCascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(30, 30)
+        )
+        
+        if(len(faces) == 0):
+            print("no faces")
+            continue
+        # Draw a rectangle around the faces
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+    
+        if anterior != len(faces):
+            anterior = len(faces)
+            log.info("faces: "+str(len(faces))+" at "+str(dt.datetime.now()))
+    
+    
+        # Display the resulting frame
+        cv2.imshow('Video', frame)
+        
+        if cv2.waitKey(1) :
+            time.sleep(5)
+            check, frame = video_capture.read()
+            cv2.imshow("Capturing", frame)
+            cv2.imwrite(filename='saved_img.jpg', img=frame)
+            video_capture.release()
+            img_new = cv2.imread('saved_img.jpg', cv2.IMREAD_GRAYSCALE)
+            img_new = cv2.imshow("Captured Image", img_new)
+            cv2.waitKey(1650)
+            print("Image Saved")
+            print("Program End")
+            cv2.destroyAllWindows()
+    
+            break
+    
+    
+        elif cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    
+        # Display the resulting frame
+        cv2.imshow('Video', frame)
+    
+    # When everything is done, release the capture
+    video_capture.release()
+    EOcompare()
+    imagecompare()
+    
+def EOcompare():
+    global bjp
+    global cng
+    global tdp
+    global jjp
+    code='abcd'
+    # make a list of all the available images
+    images = os.listdir('img')
+    
+    # load your image
+    image_to_be_matched = face_recognition.load_image_file('saved_img.jpg')
+    
+    # encoded the loaded image into a feature vector
+    image_to_be_matched_encoded = face_recognition.face_encodings(
+        image_to_be_matched)[0]
+    
+    # iterate over each image
+    for image in images:
+        # load the image
+        current_image = face_recognition.load_image_file("img/" + image)
+        # encode the loaded image into a feature vector
+        current_image_encoded = face_recognition.face_encodings(current_image)[0]
+        # match your image with the image and check if it matches
+        result = face_recognition.compare_faces(
+            [image_to_be_matched_encoded], current_image_encoded)
+        # check if it was a match
+        if result[0] == True:
+            print ("Election officer Matched: " + image )
+            cd = input('Enter password:')
+            if code==cd:
+                print("Election Officer Verified")
+                # #open and read the file after the appending:
+                f = open("election_results.txt", "r")
+                print(f.read()) 
+                sys.exit()
+            
+   
+def imagecompare():
+    # make a list of all the available images
+    images = os.listdir('images')
+    
+    # load your image
+    image_to_be_matched = face_recognition.load_image_file('saved_img.jpg')
+    
+    # encoded the loaded image into a feature vector
+    image_to_be_matched_encoded = face_recognition.face_encodings(
+        image_to_be_matched)[0]
+    
+    # iterate over each image
+    for image in images:
+        # load the image
+        current_image = face_recognition.load_image_file("images/" + image)
+        # encode the loaded image into a feature vector
+        current_image_encoded = face_recognition.face_encodings(current_image)[0]
+        # match your image with the image and check if it matches
+        result = face_recognition.compare_faces(
+            [image_to_be_matched_encoded], current_image_encoded)
+        # check if it was a match
+        if result[0] == True:
+            print ("Matched: "+ image)
+            os.remove("images/" + image)
+            vote()
+            break
+
+    engine = p.init()
+    engine.say("Sorry , your voter I D has not been recognized .")
+    engine.runAndWait()
+    main()
+
+def read_g1():
+    global bjp
+    global cng
+    global tdp
+    global jjp
+    r1 = sr.Recognizer()
+    engine = p.init()
+
+    with sr.Microphone() as source:
+        r1.adjust_for_ambient_noise(source)
+        print("Please enter the desired voting candidate from the list given below")
+        print("AB. BJP \nOP. CONGRESS\nPT. TDP\nRS. JJP\n")
+        engine.say("please enter the desired voting candidate from the list mentioned below  . AB for BJP . OP for congress . PT for TDP . RS for JJP.")
+        engine.runAndWait()
+        audio = r1.listen(source)
+        try:
+            text = r1.recognize_google(audio)
+            print(text)
+        except sr.UnknownValueError:
+            print("")
+        except sr.RequestError:
+            print("")
+
+#print(text)
+    if "ab" in text:
+        bjp=bjp+1
+    if "OP" in text:
+        cng=cng+1
+    if "PT" in text:
+        tdp=tdp+1
+    if "RS" in text:
+        jjp=jjp+1
+        
+    f = open("election_results.txt", "w")
+    f.write("\nVotes for BJP:")
+    f.write(str(bjp))
+    f.write("\nVotes for Congress:")
+    f.write(str(cng))
+    f.write("\nVotes for TDP:")
+    f.write(str(tdp))
+    f.write("\nVotes for JJP:")
+    f.write(str(jjp))
+    f.close()
+        
+
+
+
+def display_g1():
+    global bjp
+    global cng
+    global tdp
+    global jjp
+    r1 = sr.Recognizer()
+    engine = p.init()
+
+    with sr.Microphone() as source:
+        r1.adjust_for_ambient_noise(source)
+        print("Please enter the desired voting candidate from the list given below")
+        print("AB. BJP \nOP. CONGRESS\nPT. TDP\nRS. JJP\n")
+        engine.say("please enter the desired voting candidate from the list displayed  .")
+        engine.runAndWait()
+        audio = r1.listen(source)
+        try:
+            text = r1.recognize_google(audio)
+            print(text)
+        except sr.UnknownValueError:
+            print("")
+        except sr.RequestError:
+            print("")
+
+#print(text)
+    if "ab" in text:
+        bjp=bjp+1
+    if "OP" in text:
+        cng=cng+1
+    if "PT" in text:
+        tdp=tdp+1
+    if "RS" in text:
+        jjp=jjp+1
+    f = open("election_results.txt", "w")
+    f.write("\nVotes for BJP:")
+    f.write(str(bjp))
+    f.write("\nVotes for Congress:")
+    f.write(str(cng))
+    f.write("\nVotes for TDP:")
+    f.write(str(tdp))
+    f.write("\nVotes for JJP:")
+    f.write(str(jjp))
+    f.close()
+
+def read_g2():
+    global bjp
+    global cng
+    global tdp
+    global jjp
+    r1 = sr.Recognizer()
+    engine = p.init()
+
+    with sr.Microphone() as source:
+        r1.adjust_for_ambient_noise(source)
+        print("Please enter the desired voting candidate from the list given below")
+        print("RK. BJP \nMN. CONGRESS\nCA. TDP\nPC. JJP\n")
+        engine.say("please enter the desired voting candidate from the list given below  . RK for BJP . MN for congress . CA for TDP . PC for JJP.")
+        engine.runAndWait()
+        audio = r1.listen(source)
+        try:
+            text = r1.recognize_google(audio)
+            print(text)
+        except sr.UnknownValueError:
+            print("")
+        except sr.RequestError:
+            print("")
+
+#print(text)
+    if "RK" in text:
+        bjp=bjp+1
+    if "MN" in text:
+        cng=cng+1
+    if "CA" in text:
+        tdp=tdp+1
+    if "PC" in text:
+        jjp=jjp+1
+        
+    f = open("election_results.txt", "w")
+    f.write("\nVotes for BJP:")
+    f.write(str(bjp))
+    f.write("\nVotes for Congress:")
+    f.write(str(cng))
+    f.write("\nVotes for TDP:")
+    f.write(str(tdp))
+    f.write("\nVotes for JJP:")
+    f.write(str(jjp))
+    f.close()
+        
+def display_g2():
+    global bjp
+    global cng
+    global tdp
+    global jjp
+    r1 = sr.Recognizer()
+    engine = p.init()
+
+    with sr.Microphone() as source:
+        r1.adjust_for_ambient_noise(source)
+        print("Please enter the desired voting candidate from the list given below")
+        print("RK. BJP \nMN. CONGRESS\nCA. TDP\nPC. JJP\n")
+        engine.say("please enter the desired voting candidate from the list displayed  .")
+        engine.runAndWait()
+        audio = r1.listen(source)
+        try:
+            text = r1.recognize_google(audio)
+            print(text)
+        except sr.UnknownValueError:
+            print("")
+        except sr.RequestError:
+            print("")
+
+#print(text)
+    if "RK" in text:
+        bjp=bjp+1
+    if "MN" in text:
+        cng=cng+1
+    if "CA" in text:
+        tdp=tdp+1
+    if "PC" in text:
+        jjp=jjp+1
+        
+    f = open("election_results.txt", "w")
+    f.write("\nVotes for BJP:")
+    f.write(str(bjp))
+    f.write("\nVotes for Congress:")
+    f.write(str(cng))
+    f.write("\nVotes for TDP:")
+    f.write(str(tdp))
+    f.write("\nVotes for JJP:")
+    f.write(str(jjp))
+    f.close()
+
+
+def read_g3():
+    global bjp
+    global cng
+    global tdp
+    global jjp
+    r1 = sr.Recognizer()
+    engine = p.init()
+
+    with sr.Microphone() as source:
+        r1.adjust_for_ambient_noise(source)
+        print("Please enter the desired voting candidate from the list given below")
+        print("NT. BJP \nRJ. CONGRESS\nAV. TDP\nLB. JJP\n")
+        engine.say("please enter the desired voting candidate from the list given below  . NT for BJP . RJ for congress . AV for TDP . LB for JJP.")
+        engine.runAndWait()
+        audio = r1.listen(source)
+        try:
+            text = r1.recognize_google(audio)
+            print(text)
+        except sr.UnknownValueError:
+            print("")
+        except sr.RequestError:
+            print("")
+
+#print(text)
+    if "NT" in text:
+        bjp=bjp+1
+    if "RJ" in text:
+        cng=cng+1
+    if "AV" in text:
+        tdp=tdp+1
+    if "LB" in text:
+        jjp=jjp+1
+        
+    f = open("election_results.txt", "w")
+    f.write("\nVotes for BJP:")
+    f.write(str(bjp))
+    f.write("\nVotes for Congress:")
+    f.write(str(cng))
+    f.write("\nVotes for TDP:")
+    f.write(str(tdp))
+    f.write("\nVotes for JJP:")
+    f.write(str(jjp))
+    f.close()
+    
+    
+def display_g3():
+    global bjp
+    global cng
+    global tdp
+    global jjp
+    r1 = sr.Recognizer()
+    engine = p.init()
+
+    with sr.Microphone() as source:
+        r1.adjust_for_ambient_noise(source)
+        print("Please enter the desired voting candidate from the list given below")
+        print("NT. BJP \nRJ. CONGRESS\nAV. TDP\nLB. JJP\n")
+        engine.say("please enter the desired voting candidate from the list displayed  .")
+        engine.runAndWait()
+        audio = r1.listen(source)
+        try:
+            text = r1.recognize_google(audio)
+            print(text)
+        except sr.UnknownValueError:
+            print("")
+        except sr.RequestError:
+            print("")
+
+#print(text)
+    if "NT" in text:
+        bjp=bjp+1
+    if "RJ" in text:
+        cng=cng+1
+    if "AV" in text:
+        tdp=tdp+1
+    if "LB" in text:
+        jjp=jjp+1
+        
+    f = open("election_results.txt", "w")
+    f.write("\nVotes for BJP:")
+    f.write(str(bjp))
+    f.write("\nVotes for Congress:")
+    f.write(str(cng))
+    f.write("\nVotes for TDP:")
+    f.write(str(tdp))
+    f.write("\nVotes for JJP:")
+    f.write(str(jjp))
+    f.close()
+    
+def read_g4():
+    global bjp
+    global cng
+    global tdp
+    global jjp
+    r1 = sr.Recognizer()
+    engine = p.init()
+
+    with sr.Microphone() as source:
+        r1.adjust_for_ambient_noise(source)
+        print("Please enter the desired voting candidate from the list given below")
+        print("TD. BJP \nST. CONGRESS\nAG. TDP\nMP. JJP\n")
+        engine.say("please enter the desired voting candidate from the list given below  . TD for BJP . ST for congress .AG for TDP . MP for JJP.")
+        engine.runAndWait()
+        audio = r1.listen(source)
+        try:
+            text = r1.recognize_google(audio)
+            print(text)
+        except sr.UnknownValueError:
+            print("")
+        except sr.RequestError:
+            print("")
+
+    #print(text)
+    if "TD" in text:
+        bjp=bjp+1
+    if "ST" in text:
+        cng=cng+1
+    if "AG" in text:
+        tdp=tdp+1
+    if "MP" in text:
+        jjp=jjp+1
+
+    f = open("election_results.txt", "w")
+    f.write("\nVotes for BJP:")
+    f.write(str(bjp))
+    f.write("\nVotes for Congress:")
+    f.write(str(cng))
+    f.write("\nVotes for TDP:")
+    f.write(str(tdp))
+    f.write("\nVotes for JJP:")
+    f.write(str(jjp))
+    f.close()
+        
+def display_g4():
+    global bjp
+    global cng
+    global tdp
+    global jjp
+    r1 = sr.Recognizer()
+    engine = p.init()
+
+    with sr.Microphone() as source:
+        r1.adjust_for_ambient_noise(source)
+        print("Please enter the desired voting candidate from the list given below")
+        print("TD. BJP \nST. CONGRESS\nAG. TDP\nMP. JJP\n")
+        engine.say("please enter the desired voting candidate from the list displayed  .")
+        engine.runAndWait()
+        audio = r1.listen(source)
+        try:
+            text = r1.recognize_google(audio)
+            print(text)
+        except sr.UnknownValueError:
+            print("")
+        except sr.RequestError:
+            print("")
+
+    #print(text)
+    if "TD" in text:
+        bjp=bjp+1
+    if "ST" in text:
+        cng=cng+1
+    if "AG" in text:
+        tdp=tdp+1
+    if "MP" in text:
+        jjp=jjp+1
+    
+    f = open("election_results.txt", "w")
+    f.write("\nVotes for BJP:")
+    f.write(str(bjp))
+    f.write("\nVotes for Congress:")
+    f.write(str(cng))
+    f.write("\nVotes for TDP:")
+    f.write(str(tdp))
+    f.write("\nVotes for JJP:")
+    f.write(str(jjp))
+    f.close()
+
+
+
+def vote():
+    global a
+    engine = p.init()
+    engine.say("welcome , your voter I D has been verified .")
+    print("Welcome , your voter I D has been verified .")
+    
+
+    if a==1:
+        r1 = sr.Recognizer()
+        engine = p.init()
+        with sr.Microphone() as source:
+            r1.adjust_for_ambient_noise(source)
+            print("READ/DISPLAY")
+            engine.say("READ or DISPLAY")
+            engine.runAndWait()
+            audio = r1.listen(source)
+            try:
+                text = r1.recognize_google(audio)
+                print(text)
+            except sr.UnknownValueError:
+                print("")
+            except sr.RequestError:
+                print("")
+        if "read" in text:
+            read_g1()
+        if "display" in text:
+            display_g1()
+            
+    if a==2:
+        r1 = sr.Recognizer()
+        engine = p.init()
+        with sr.Microphone() as source:
+            r1.adjust_for_ambient_noise(source)
+            print("READ/DISPLAY")
+            engine.say("READ or DISPLAY")
+            engine.runAndWait()
+            audio = r1.listen(source)
+            try:
+                text = r1.recognize_google(audio)
+                print(text)
+            except sr.UnknownValueError:
+                print("")
+            except sr.RequestError:
+                print("")
+        if "read" in text:
+            read_g2()
+        if "display" in text:
+            display_g2()
+            
+    if a==3:
+        r1 = sr.Recognizer()
+        engine = p.init()
+        with sr.Microphone() as source:
+            r1.adjust_for_ambient_noise(source)
+            print("READ/DISPLAY")
+            engine.say("READ or DISPLAY")
+            engine.runAndWait()
+            audio = r1.listen(source)
+            try:
+                text = r1.recognize_google(audio)
+                print(text)
+            except sr.UnknownValueError:
+                print("")
+            except sr.RequestError:
+                print("")
+        if "read" in text:
+            read_g3()
+        if "display" in text:
+            display_g3()
+            
+    if a==4:
+        r1 = sr.Recognizer()
+        engine = p.init()
+        with sr.Microphone() as source:
+            r1.adjust_for_ambient_noise(source)
+            print("READ/DISPLAY")
+            engine.say("READ or DISPLAY")
+            engine.runAndWait()
+            audio = r1.listen(source)
+            try:
+                text = r1.recognize_google(audio)
+                print(text)
+            except sr.UnknownValueError:
+                print("")
+            except sr.RequestError:
+                print("")
+        if "read" in text:
+            read_g4()
+        if "display" in text:
+            display_g4()
+            
+    main()
+        
+    
+        
+def main():
+    global a
+    for i in range (0,3):
+        list = [1,2,3,4]
+        a=random.choice(list) 
+        imagecapture()
+        
+main()
